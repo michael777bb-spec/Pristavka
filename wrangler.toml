@@ -1,0 +1,46 @@
+# Planetar — один проєкт Cloudflare Workers: сайт, приставка, сервер, Telegram-бот, ШІ й кімнати.
+# Нічого міняти не треба: база даних D1 створюється сама під час першого викладання.
+# Таємні ключі (TG_TOKEN, ADMIN_KEY) сюди НЕ пишемо — лише в Cloudflare → Settings → Variables and Secrets.
+name = "planetar"
+main = "server/worker.js"
+compatibility_date = "2026-10-01"
+
+# перед викладанням: розпакувати planetar-project.zip, якщо він є (див. prepare.mjs), і зібрати сайт (build.mjs)
+[build]
+command = "node prepare.mjs"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = ["/", "/en/", "/ru/", "/api/*", "/robots.txt", "/sitemap.xml"]
+
+# база даних (гравці, рейтинг, виклики, прогрес для бота)
+[[d1_databases]]
+binding = "DB"
+database_name = "planetar-db"
+
+# безкоштовний ШІ Cloudflare (10 000 «нейронів» на день на весь акаунт)
+[ai]
+binding = "AI"
+
+# кімнати в реальному часі
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+# кожні 15 хв сервер перевіряє, кому вже час нагадати (час і пояс — налаштування, див. docs/НАЛАШТУВАННЯ.md)
+[triggers]
+crons = ["*/15 * * * *"]
+
+[observability]
+enabled = true
+
+# Стандартні значення. Міняти краще без перезаливу: /api/admin/set?key=ADMIN_KEY&ai_limit=60 (docs/НАЛАШТУВАННЯ.md)
+[vars]
+AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+AI_DAILY_LIMIT = "40"
